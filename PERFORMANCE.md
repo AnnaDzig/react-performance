@@ -186,16 +186,60 @@ This section will be updated after each optimization step.
 
 ---
 
-# Phase 3: Final profiling comparison
+# Phase 2: Optimizations
 
-This section will be completed after all optimizations are implemented and the same interactions are profiled again.
+## Optimization 1: Memoized computed values and stabilized handlers
 
-| Interaction                | Baseline render | Optimized render | Improvement |
-| -------------------------- | --------------: | ---------------: | ----------: |
-| Sorting countries          |         122.2ms |              TBD |         TBD |
-| Searching for a country    |           101ms |              TBD |         TBD |
-| Selecting a different year |         120.8ms |              TBD |         TBD |
-| Toggling columns           |         114.7ms |              TBD |         TBD |
+The first optimization focused on values and functions that were recreated on every render.
+
+### Changes made
+
+- Added `useMemo` for available years.
+- Added `useMemo` for available columns.
+- Added `useMemo` for filtered and sorted countries.
+- Added `useMemo` for year data lookup in `CountryCard`.
+- Added `useMemo` for selected year record lookup in `DataTable`.
+- Added `useCallback` for search, year selection, sorting, column toggling, and modal toggling handlers.
+- Replaced index-based country keys with stable `country.id` keys.
+- Replaced index-based table row keys with stable `column` keys.
+
+### Why this improves performance
+
+Before this change, expensive computed values were recalculated during every render, even when their inputs had not changed.
+
+Using `useMemo` allows React to reuse computed values until their dependencies change.
+
+Using `useCallback` keeps handler references stable, which is important when child components are memoized with `React.memo`.
+
+Stable keys also help React correctly identify list items between renders.
+
+---
+
+## Optimization 2: Memoized render components with React.memo
+
+The second optimization focused on preventing child components from rendering when their props did not change.
+
+### Changes made
+
+The following components were wrapped with `React.memo`:
+
+- `SearchBar`
+- `YearSelector`
+- `ColumnModal`
+- `CountryList`
+- `CountryCard`
+- `DataTable`
+- `LoadingSpinner`
+
+### Why this improves performance
+
+Before this change, child components could re-render whenever their parent component rendered.
+
+After wrapping components with `React.memo`, React can skip rendering a component when its props are the same as during the previous render.
+
+This makes the stable handlers from `useCallback` and memoized values from `useMemo` more effective.
+
+---
 
 ## Optimization 3: Country list virtualization
 
@@ -220,6 +264,8 @@ Before virtualization, every update caused many `CountryCard` and `DataTable` co
 
 After virtualization, React only renders the country cards currently visible on the screen. This significantly reduces render work during sorting, searching, year selection, and column toggling.
 
+---
+
 ## Optimization 4: Reused year data maps for country calculations
 
 Population sorting was still expensive because `createYearDataMap` was called repeatedly inside the sort comparison function.
@@ -238,6 +284,8 @@ To fix this, each country is now prepared once with a reusable `yearDataMap`.
 
 Sorting can compare population values without rebuilding maps many times. `CountryCard` and `DataTable` also avoid repeated year-based lookups and filtering.
 
+---
+
 ## Optimization 5: Avoided unnecessary state updates
 
 Some event handlers updated the main `App` state even when the selected value had not changed.
@@ -251,3 +299,138 @@ Some event handlers updated the main `App` state even when the selected value ha
 ### Why this improves performance
 
 Returning the existing state object prevents unnecessary updates when the user selects the same value again. It also keeps handler references stable and makes memoized child components more effective.
+
+---
+
+# Phase 3: Final profiling comparison
+
+After applying all optimizations, the same interactions were profiled again with React DevTools Profiler.
+
+The optimized version includes:
+
+- `useMemo` for expensive computed values
+- `useCallback` for stable event handlers
+- `React.memo` for memoized components
+- Stable keys for lists and table rows
+- Manual virtualization for the large country list
+- Reused year data maps for country calculations
+- Avoided unnecessary state updates in `App`
+
+---
+
+## Optimized results
+
+| Interaction                | Baseline render | Optimized render |  Improvement |
+| -------------------------- | --------------: | ---------------: | -----------: |
+| Sorting countries          |         122.2ms |           34.7ms | 71.6% faster |
+| Searching for a country    |           101ms |           29.4ms | 70.9% faster |
+| Selecting a different year |         120.8ms |           57.7ms | 52.2% faster |
+| Toggling columns           |         114.7ms |             10ms | 91.3% faster |
+
+---
+
+## 1. Sorting countries after optimization
+
+![Optimized sorting countries](./screenshots/optimized-sorting-countries.png)
+
+### Result
+
+- Baseline render duration: **122.2ms**
+- Optimized render duration: **34.7ms**
+- Improvement: **71.6% faster**
+
+### What changed
+
+Sorting became faster because the app no longer renders the full country list after every sort update.
+
+Before optimization, sorting caused many `CountryCard` and `DataTable` components to render.
+
+After optimization, the list is virtualized, so React renders only the visible country cards.
+
+Population sorting was also improved by reusing precomputed year data maps instead of creating new maps repeatedly inside the sort comparison function.
+
+---
+
+## 2. Searching for a country after optimization
+
+![Optimized searching country](./screenshots/optimized-searching-country.png)
+
+### Result
+
+- Baseline render duration: **101ms**
+- Optimized render duration: **29.4ms**
+- Improvement: **70.9% faster**
+
+### What changed
+
+Searching still recalculates the filtered country list because the search query changes.
+
+However, the render work is much smaller now because the app renders only the visible part of the filtered list.
+
+Before optimization, many country cards and data tables were rendered during search.
+
+After optimization, virtualization keeps the number of rendered components much lower.
+
+---
+
+## 3. Selecting a different year after optimization
+
+![Optimized selecting year](./screenshots/optimized-selecting-year.png)
+
+### Result
+
+- Baseline render duration: **120.8ms**
+- Optimized render duration: **57.7ms**
+- Improvement: **52.2% faster**
+
+### What changed
+
+Changing the year still affects visible country cards because their population, CO₂ value, and table data depend on the selected year.
+
+However, the optimized version avoids rendering the full country list.
+
+It also reuses year data maps, so each visible country can access the selected year data more efficiently.
+
+---
+
+## 4. Toggling columns after optimization
+
+![Optimized toggling columns](./screenshots/optimized-toggling-columns.png)
+
+### Result
+
+- Baseline render duration: **114.7ms**
+- Optimized render duration: **10ms**
+- Improvement: **91.3% faster**
+
+### What changed
+
+This interaction improved the most.
+
+Before optimization, toggling a column caused many country cards and data tables to render.
+
+After optimization, the profiler shows mostly `ColumnModal (Memo)` and a small `App` update. This is expected because the column modal is the component directly affected by the column selection.
+
+Virtualization also prevents the whole country list from being rendered.
+
+---
+
+# Final conclusion
+
+The optimized application performs significantly better than the initial version.
+
+The main bottleneck was rendering the full country list and recalculating country/year data during render.
+
+The largest improvement came from virtualization, because it reduced the number of mounted and rendered `CountryCard` and `DataTable` components.
+
+Additional improvements came from memoization, stable callbacks, stable keys, and reusing computed year data maps.
+
+Overall, all required optimization techniques were applied:
+
+| Requirement                                         | Status |
+| --------------------------------------------------- | ------ |
+| `useMemo` used for computed values                  | Done   |
+| `useCallback` used for event handlers               | Done   |
+| `React.memo` used to prevent unnecessary re-renders | Done   |
+| Proper key props used for lists and tables          | Done   |
+| Virtualization implemented for large country list   | Done   |
