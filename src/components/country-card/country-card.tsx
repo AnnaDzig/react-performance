@@ -1,33 +1,20 @@
-import { memo, useMemo } from 'react';
-import type { Country } from '../../types';
+import { memo } from 'react';
+import type { CountryWithYearMap } from '../country-list/country-list';
 import { DataTable } from '../data-table/data-table';
-import {
-  getPopulationForYear,
-  getCo2ForYear,
-  createYearDataMap,
-} from '../../utils/data-transformers';
+import { getPopulationForYear, getCo2ForYear } from '../../utils/data-transformers';
 import { formatNumber } from '../../utils/format-utils';
 
 import styles from './country-card.module.css';
 
 type CountryCardProps = {
-  country: Country;
+  country: CountryWithYearMap;
   selectedYear: number;
   selectedColumns: string[];
 };
 
 export const CountryCard = memo(({ country, selectedYear, selectedColumns }: CountryCardProps) => {
-  const yearDataMap = useMemo(() => {
-    return createYearDataMap(country.data);
-  }, [country.data]);
-
-  const population = useMemo(() => {
-    return getPopulationForYear(yearDataMap, selectedYear);
-  }, [yearDataMap, selectedYear]);
-
-  const co2 = useMemo(() => {
-    return getCo2ForYear(yearDataMap, selectedYear);
-  }, [yearDataMap, selectedYear]);
+  const population = getPopulationForYear(country.yearDataMap, selectedYear);
+  const co2 = getCo2ForYear(country.yearDataMap, selectedYear);
 
   return (
     <div className={styles.card}>
@@ -45,7 +32,11 @@ export const CountryCard = memo(({ country, selectedYear, selectedColumns }: Cou
         </div>
       </div>
 
-      <DataTable data={country.data} year={selectedYear} columns={selectedColumns} />
+      <DataTable
+        record={country.yearDataMap.get(selectedYear)}
+        year={selectedYear}
+        columns={selectedColumns}
+      />
     </div>
   );
 });

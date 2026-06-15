@@ -1,8 +1,8 @@
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { UIEvent } from 'react';
-import type { Country } from '../../types';
+import type { Country, YearData } from '../../types';
 import { CountryCard } from '../country-card/country-card';
-import { getPopulationForYear, createYearDataMap } from '../../utils/data-transformers';
+import { createYearDataMap, getPopulationForYear } from '../../utils/data-transformers';
 
 import styles from './country-list.module.css';
 
@@ -14,6 +14,10 @@ type CountryListProps = {
   selectedYear: number;
   sortField: 'name' | 'population';
   sortOrder: 'asc' | 'desc';
+};
+
+export type CountryWithYearMap = Country & {
+  yearDataMap: Map<number, YearData>;
 };
 
 const VIRTUAL_LIST_HEIGHT = 700;
@@ -31,13 +35,19 @@ export const CountryList = memo(
     sortField,
     sortOrder,
   }: CountryListProps) => {
-    const listRef = useRef<HTMLDivElement | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
+
+    const countriesWithYearMap = useMemo<CountryWithYearMap[]>(() => {
+      return countries.map((country) => ({
+        ...country,
+        yearDataMap: createYearDataMap(country.data),
+      }));
+    }, [countries]);
 
     const filteredCountries = useMemo(() => {
       const normalizedSearchQuery = searchQuery.toLowerCase();
 
-      return countries
+      return countriesWithYearMap
         .filter((country) => {
           const matchesSearch = country.id.toLowerCase().includes(normalizedSearchQuery);
           const matchesRegion =
@@ -45,24 +55,23 @@ export const CountryList = memo(
 
           return matchesSearch && matchesRegion;
         })
-        .sort((firstCountry, secondCountry) => {
+        .slice()
+        .sort((firstCountry: CountryWithYearMap, secondCountry: CountryWithYearMap) => {
           if (sortField === 'name') {
             return sortOrder === 'asc'
               ? firstCountry.id.localeCompare(secondCountry.id)
               : secondCountry.id.localeCompare(firstCountry.id);
           }
 
-          const firstPopulation =
-            getPopulationForYear(createYearDataMap(firstCountry.data), selectedYear) ?? 0;
-
+          const firstPopulation = getPopulationForYear(firstCountry.yearDataMap, selectedYear) ?? 0;
           const secondPopulation =
-            getPopulationForYear(createYearDataMap(secondCountry.data), selectedYear) ?? 0;
+            getPopulationForYear(secondCountry.yearDataMap, selectedYear) ?? 0;
 
           return sortOrder === 'asc'
             ? firstPopulation - secondPopulation
             : secondPopulation - firstPopulation;
         });
-    }, [countries, searchQuery, selectedRegion, selectedYear, sortField, sortOrder]);
+    }, [countriesWithYearMap, searchQuery, selectedRegion, selectedYear, sortField, sortOrder]);
 
     const itemHeight = useMemo(() => {
       return BASE_CARD_HEIGHT + selectedColumns.length * TABLE_ROW_HEIGHT;
@@ -72,7 +81,6 @@ export const CountryList = memo(
 
     const visibleRange = useMemo(() => {
       const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - OVERSCAN_COUNT);
-
       const visibleCount = Math.ceil(VIRTUAL_LIST_HEIGHT / itemHeight);
 
       const endIndex = Math.min(
@@ -99,7 +107,7 @@ export const CountryList = memo(
     }
 
     return (
-      <div ref={listRef} className={styles.countryList} onScroll={handleScroll}>
+      <div className={styles.countryList} onScroll={handleScroll}>
         <div className={styles.virtualSpacer} style={{ height: totalHeight }}>
           {visibleCountries.map((country, index) => {
             const realIndex = visibleRange.startIndex + index;
