@@ -219,3 +219,21 @@ Instead of rendering all countries, the component now calculates the visible ran
 Before virtualization, every update caused many `CountryCard` and `DataTable` components to render.
 
 After virtualization, React only renders the country cards currently visible on the screen. This significantly reduces render work during sorting, searching, year selection, and column toggling.
+
+## Optimization 4: Reused year data maps for country calculations
+
+Population sorting was still expensive because `createYearDataMap` was called repeatedly inside the sort comparison function.
+
+To fix this, each country is now prepared once with a reusable `yearDataMap`.
+
+### Changes made
+
+- Added `CountryWithYearMap` type.
+- Created `countriesWithYearMap` with `useMemo`.
+- Reused `yearDataMap` during population sorting.
+- Passed the precomputed map to `CountryCard`.
+- Updated `DataTable` to receive the selected year record directly instead of filtering the full data array.
+
+### Why this improves performance
+
+Sorting can compare population values without rebuilding maps many times. `CountryCard` and `DataTable` also avoid repeated year-based lookups and filtering.
