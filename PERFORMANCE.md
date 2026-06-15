@@ -237,3 +237,17 @@ To fix this, each country is now prepared once with a reusable `yearDataMap`.
 ### Why this improves performance
 
 Sorting can compare population values without rebuilding maps many times. `CountryCard` and `DataTable` also avoid repeated year-based lookups and filtering.
+
+## Optimization 5: Avoided unnecessary state updates
+
+Some event handlers updated the main `App` state even when the selected value had not changed.
+
+### Changes made
+
+- Added equality checks before updating `searchQuery`, `selectedYear`, and `sortField`.
+- Replaced the inline sort select handler with a stable `useCallback` handler.
+- Continued using functional state updates to avoid stale state values.
+
+### Why this improves performance
+
+Returning the existing state object prevents unnecessary updates when the user selects the same value again. It also keeps handler references stable and makes memoized child components more effective.
