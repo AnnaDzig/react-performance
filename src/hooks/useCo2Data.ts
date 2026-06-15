@@ -9,6 +9,7 @@ export const useCo2Data = () => {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+
       try {
         const res = await fetch(`${import.meta.env.BASE_URL}data/owid-co2-data.json`);
 
@@ -20,6 +21,7 @@ export const useCo2Data = () => {
 
         const parsed = Object.entries(json).map(([countryName, countryData]) => {
           const data = countryData as { iso_code?: string; data: YearData[] };
+
           return {
             id: countryName,
             iso_code: data.iso_code,
