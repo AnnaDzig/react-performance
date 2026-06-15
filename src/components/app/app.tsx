@@ -9,12 +9,15 @@ import { getAvailableYears, getAvailableColumns } from '../../utils/data-transfo
 
 import styles from './app.module.css';
 
+type SortField = 'name' | 'population';
+type SortOrder = 'asc' | 'desc';
+
 type AppState = {
   searchQuery: string;
   selectedRegion: string;
   selectedYear: number;
-  sortField: 'name' | 'population';
-  sortOrder: 'asc' | 'desc';
+  sortField: SortField;
+  sortOrder: SortOrder;
   selectedColumns: string[];
   isColumnModalOpen: boolean;
 };
@@ -41,25 +44,50 @@ export const App = () => {
   }, []);
 
   const handleSearch = useCallback((value: string) => {
-    setState((currentState) => ({
-      ...currentState,
-      searchQuery: value,
-    }));
+    setState((currentState) => {
+      if (currentState.searchQuery === value) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        searchQuery: value,
+      };
+    });
   }, []);
 
   const handleYearChange = useCallback((year: number) => {
-    setState((currentState) => ({
-      ...currentState,
-      selectedYear: year,
-    }));
+    setState((currentState) => {
+      if (currentState.selectedYear === year) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        selectedYear: year,
+      };
+    });
   }, []);
 
-  const handleSortFieldChange = useCallback((field: 'name' | 'population') => {
-    setState((currentState) => ({
-      ...currentState,
-      sortField: field,
-    }));
+  const handleSortFieldChange = useCallback((field: SortField) => {
+    setState((currentState) => {
+      if (currentState.sortField === field) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        sortField: field,
+      };
+    });
   }, []);
+
+  const handleSortSelectChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      handleSortFieldChange(event.target.value as SortField);
+    },
+    [handleSortFieldChange]
+  );
 
   const handleSortOrderToggle = useCallback(() => {
     setState((currentState) => ({
@@ -69,12 +97,16 @@ export const App = () => {
   }, []);
 
   const handleColumnToggle = useCallback((column: string) => {
-    setState((currentState) => ({
-      ...currentState,
-      selectedColumns: currentState.selectedColumns.includes(column)
-        ? currentState.selectedColumns.filter((item) => item !== column)
-        : [...currentState.selectedColumns, column],
-    }));
+    setState((currentState) => {
+      const isSelected = currentState.selectedColumns.includes(column);
+
+      return {
+        ...currentState,
+        selectedColumns: isSelected
+          ? currentState.selectedColumns.filter((item) => item !== column)
+          : [...currentState.selectedColumns, column],
+      };
+    });
   }, []);
 
   const handleModalToggle = useCallback(() => {
@@ -110,7 +142,7 @@ export const App = () => {
 
           <select
             value={state.sortField}
-            onChange={(event) => handleSortFieldChange(event.target.value as 'name' | 'population')}
+            onChange={handleSortSelectChange}
             className={styles.sortSelect}
           >
             <option value="population">Population</option>
