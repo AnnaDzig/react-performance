@@ -196,3 +196,26 @@ This section will be completed after all optimizations are implemented and the s
 | Searching for a country    |           101ms |              TBD |         TBD |
 | Selecting a different year |         120.8ms |              TBD |         TBD |
 | Toggling columns           |         114.7ms |              TBD |         TBD |
+
+## Optimization 3: Country list virtualization
+
+The largest rendering bottleneck was the country list. The unoptimized version rendered every filtered country card and every nested data table at once.
+
+To reduce the amount of work React performs per update, manual virtualization was implemented in `CountryList`.
+
+Instead of rendering all countries, the component now calculates the visible range from the current scroll position and renders only the visible countries plus a small overscan buffer.
+
+### Changes made
+
+- Added a scroll container with a fixed height.
+- Calculated total virtual list height.
+- Calculated visible start and end indexes.
+- Rendered only the visible slice of countries.
+- Positioned visible items absolutely inside a spacer element.
+- Adjusted item height based on the number of selected columns.
+
+### Why this improves performance
+
+Before virtualization, every update caused many `CountryCard` and `DataTable` components to render.
+
+After virtualization, React only renders the country cards currently visible on the screen. This significantly reduces render work during sorting, searching, year selection, and column toggling.
