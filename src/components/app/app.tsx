@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useCo2Data } from '../../hooks/useCo2Data';
 import { LoadingSpinner } from '../loading-spinner/loading-spinner';
 import { SearchBar } from '../search-bar/search-bar';
@@ -9,12 +9,15 @@ import { getAvailableYears, getAvailableColumns } from '../../utils/data-transfo
 
 import styles from './app.module.css';
 
+type SortField = 'name' | 'population';
+type SortOrder = 'asc' | 'desc';
+
 type AppState = {
   searchQuery: string;
   selectedRegion: string;
   selectedYear: number;
-  sortField: 'name' | 'population';
-  sortOrder: 'asc' | 'desc';
+  sortField: SortField;
+  sortOrder: SortOrder;
   selectedColumns: string[];
   isColumnModalOpen: boolean;
 };
@@ -32,40 +35,86 @@ export const App = () => {
     isColumnModalOpen: false,
   });
 
-  const years = data ? getAvailableYears(data) : [];
-  const availableColumns = getAvailableColumns();
+  const years = useMemo(() => {
+    return data ? getAvailableYears(data) : [];
+  }, [data]);
 
-  const handleSearch = (value: string) => {
-    setState({ ...state, searchQuery: value });
-  };
+  const availableColumns = useMemo(() => {
+    return getAvailableColumns();
+  }, []);
 
-  const handleYearChange = (year: number) => {
-    setState({ ...state, selectedYear: year });
-  };
+  const handleSearch = useCallback((value: string) => {
+    setState((currentState) => {
+      if (currentState.searchQuery === value) {
+        return currentState;
+      }
 
-  const handleSortFieldChange = (field: 'name' | 'population') => {
-    setState({ ...state, sortField: field });
-  };
-
-  const handleSortOrderToggle = () => {
-    setState({
-      ...state,
-      sortOrder: state.sortOrder === 'asc' ? 'desc' : 'asc',
+      return {
+        ...currentState,
+        searchQuery: value,
+      };
     });
-  };
+  }, []);
 
-  const handleColumnToggle = (column: string) => {
-    setState({
-      ...state,
-      selectedColumns: state.selectedColumns.includes(column)
-        ? state.selectedColumns.filter((c) => c !== column)
-        : [...state.selectedColumns, column],
+  const handleYearChange = useCallback((year: number) => {
+    setState((currentState) => {
+      if (currentState.selectedYear === year) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        selectedYear: year,
+      };
     });
-  };
+  }, []);
 
-  const handleModalToggle = () => {
-    setState({ ...state, isColumnModalOpen: !state.isColumnModalOpen });
-  };
+  const handleSortFieldChange = useCallback((field: SortField) => {
+    setState((currentState) => {
+      if (currentState.sortField === field) {
+        return currentState;
+      }
+
+      return {
+        ...currentState,
+        sortField: field,
+      };
+    });
+  }, []);
+
+  const handleSortSelectChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      handleSortFieldChange(event.target.value as SortField);
+    },
+    [handleSortFieldChange]
+  );
+
+  const handleSortOrderToggle = useCallback(() => {
+    setState((currentState) => ({
+      ...currentState,
+      sortOrder: currentState.sortOrder === 'asc' ? 'desc' : 'asc',
+    }));
+  }, []);
+
+  const handleColumnToggle = useCallback((column: string) => {
+    setState((currentState) => {
+      const isSelected = currentState.selectedColumns.includes(column);
+
+      return {
+        ...currentState,
+        selectedColumns: isSelected
+          ? currentState.selectedColumns.filter((item) => item !== column)
+          : [...currentState.selectedColumns, column],
+      };
+    });
+  }, []);
+
+  const handleModalToggle = useCallback(() => {
+    setState((currentState) => ({
+      ...currentState,
+      isColumnModalOpen: !currentState.isColumnModalOpen,
+    }));
+  }, []);
 
   if (isLoading) {
     return <LoadingSpinner />;
@@ -83,16 +132,17 @@ export const App = () => {
     <div className={styles.container}>
       <h1 className={styles.title}>CO₂ Emissions Data Explorer</h1>
 
-      {/* Controls */}
       <div className={styles.controls}>
         <SearchBar value={state.searchQuery} onChange={handleSearch} />
+
         <YearSelector year={state.selectedYear} years={years} onChange={handleYearChange} />
 
         <div className={styles.sortContainer}>
           <label className={styles.sortLabel}>Sort by:</label>
+
           <select
             value={state.sortField}
-            onChange={(e) => handleSortFieldChange(e.target.value as 'name' | 'population')}
+            onChange={handleSortSelectChange}
             className={styles.sortSelect}
           >
             <option value="population">Population</option>
@@ -111,7 +161,6 @@ export const App = () => {
         </div>
       </div>
 
-      {/* Country List */}
       <CountryList
         countries={data}
         searchQuery={state.searchQuery}
@@ -120,10 +169,8 @@ export const App = () => {
         selectedYear={state.selectedYear}
         sortField={state.sortField}
         sortOrder={state.sortOrder}
-        onYearChange={handleYearChange}
       />
 
-      {/* Column Modal */}
       <ColumnModal
         isOpen={state.isColumnModalOpen}
         availableColumns={availableColumns}
